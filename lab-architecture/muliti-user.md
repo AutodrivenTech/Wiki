@@ -1,27 +1,31 @@
-<!-- TITLE: Muliti User -->
-<!-- SUBTITLE: A quick summary of Muliti User -->
+<!-- TITLE: 为实验室建立公用GPU服务器 -->
+<!-- SUBTITLE: 多用户管理 -->
 
-# Header
-需求的产生
+[原始链接](https://zhuanlan.zhihu.com/p/25710517)
+
+
+# 需求的产生
+
 现在深度学习风生水起，为了满足人民日益增长的计算需求，相信各个实验室都开始买起了显卡。然而毕竟显卡还是贵，做不到人手一块，所以只能以公用机器的形式出现了。
 
 大家都在公用机器上跑实验，而各自所需要的软件（比如 Cuda、TensorFlow……）版本却可能不一样，这样很容易因为版本问题而导致程序无法运行。解决这些软件冲突问题是一个又繁琐又耗时的工作，而且常常弄得鸡飞狗跳，最终没有人可以正常运行实验。所以说，我们希望在公用的机器上能够有一定的管理，使得不同的用户不会相互影响。
 
 这里我列出一些需求：
 
-不同用户之间不能相互影响
-用户要能方便地访问自己的“虚拟机”
-用户要有足够大的权限，能自由地安装程序，能自由地访问网络
-用户不被允许直接操作宿主机
-用户要能够使用 GPU
-用户能够方便地使用实验室的 NAS
-为满足这些需求，额外的开销应该小得可以忽略
-管理员应该能轻松地添加新的用户
-公用机器的资源应该能得到最大化的利用
-这套解决方案不应该太复杂
+- 不同用户之间不能相互影响
+- 用户要能方便地访问自己的“虚拟机”
+- 用户要有足够大的权限，能自由地安装程序，能自由地访问网络
+- 用户不被允许直接操作宿主机
+- 用户要能够使用 GPU
+- 用户能够方便地使用实验室的 NAS
+- 为满足这些需求，额外的开销应该小得可以忽略
+- 管理员应该能轻松地添加新的用户
+- 公用机器的资源应该能得到最大化的利用
+- 这套解决方案不应该太复杂
+
 下面我将叙述我解决以上需求的方法，以供有需要的人参考。本文的受众应该是实验室的公用机器管理员，有一定的 Linux 基础，或者对此感兴趣的普通用户。
 
-解决思路
+# 解决思路
 从需求出发，首先解决的问题就是怎么做用户的隔离。最简单粗暴的方法无疑就是虚拟机，然而现在的家用显卡并不支持虚拟化，并且CPU虚拟化的额外开销还是很可观的，另外IO虚拟化的性能更是问题。
 
 目前很多 Hypervisor 都支持 PCI Passthrough，然而如果采用这个技术的话，显卡就只能被一台虚拟机独占，其他虚拟机就无法使用这块显卡。有趣的是，一般的代码是远远无法占满GPU的，GPU利用率只会达到10%~30%左右。在这样的情况下，多个用户共享同一个GPU是合理的，也是提高硬件资源的利用率。
@@ -58,7 +62,7 @@ LXC 容器的 IP 是只有宿主机能访问得到的内网 IP，用户要怎么
 
 为了方便用户使用，管理员需要编写一点简单的文档指引用户。反过来，管理员也得给自己写一点简单的脚本来方便添加删除用户这样的操作。
 
-方法概述
+# 方法概述
 下面总结一下上面提到的方法：
 
 使用 LXC 作为隔离机制，给每个用户分配一个 LXC 容器
@@ -78,6 +82,7 @@ LXC 容器的 IP 是只有宿主机能访问得到的内网 IP，用户要怎么
 
 在后面的用户 Shell 脚本中需要用到 sudo，我们不希望让用户再次输入密码，所以我们在 sudoer 里面设置成不需要使用密码。
 
+```
 host$ sudo vim /etc/rc.local     # for the /dev/nvidia-uvm script
 host$ sudo vim /etc/fstab
 172.16.2.30:/mnt/NAS/Share /NAS/Share nfs rw 0 0
@@ -89,7 +94,9 @@ host$ ls /dev/nvidia*
 host$ nvidia-smi                 # should have no error
 host$ sudo visudo
 %sudo   ALL=(ALL:ALL) NOPASSWD:ALL
-制作 LXC 容器模板
+```
+
+# 制作 LXC 容器模板
 为了方便添加用户，我们先制作一个 LXC 容器模板，之后每次新建容器的时候就从这个模板克隆一份。
 
 首先管理员在宿主机上使用自己的普通权限账号新建一个 LXC 容器，这里可以跟着 LXC官方的文档 进行操作。其中，对于中国用户来说，可以使用清华的镜像来加速镜像的下载。在这里，我把容器的名字就叫做 template，后面添加用户的脚本有时会对 template 这个名字进行替换（比如替换 /etc/hosts 之类的）。
@@ -102,6 +109,7 @@ host$ sudo visudo
 
 配置好了模板容器之后，我们关闭这个容器，并把它复制到 /root/lxc-public-images/template，并且稍微修改其中的配置文件，把 lxc.network.hwaddr, lxc.id_map, lxc.rootfs, lxc.utsname 等容器特有的配置删去。这些配置我们在后面的添加用户的脚本中再把它们生成出来。
 
+```
 host$ sudo apt install lxc
 host$ sudo vim /etc/lxc/lxc-usernet
 host$ lxc-create -t download -n template -- --server mirrors.tuna.tsinghua.edu.cn/lxc-images
@@ -126,13 +134,17 @@ host$ sudo mkdir -p /root/lxc-public-images/
 host$ sudo cp -r ~/.local/share/lxc/template /root/lxc-public-images/template
 host$ sudo vim /root/lxc-public-images/template/config
 # delete: lxc.network.hwaddr, lxc.id_map, lxc.rootfs, lxc.utsname
-编写各种脚本
-我把所有需要用到的脚本都放在了 https://gist.github.com/abcdabcd987/d9ab8a8a36272678567e9fb23aed475b。这是用于我们实验室的脚本，如果你需要借鉴，请勿直接复制粘贴，请确保自己明白每一行命令的作用，然后做修改。
+```
 
-编写用户文档
+# 编写各种脚本
+
+我把所有需要用到的脚本都放在了 https://gist.github.com/abcdabcd987/d9ab8a8a36272678567e9fb23aed475b。 这是用于我们实验室的脚本，如果你需要借鉴，请勿直接复制粘贴，请确保自己明白每一行命令的作用，然后做修改。
+
+# 编写用户文档
 这里 有一份我们实验室里的 GPU Server 使用指南可以借鉴。
 
-结语
+# 结语
+
 这一套流程完整地做下来确实非常折腾。不过有了这么一套简单的管理方法之后，起码大家就不用因为软件冲突而大大降低工作效率。虽然只提供了 ssh，但只要有了 ssh，就可以控制远程电脑、传输文件、转发X11图形界面、使用 sshfs 把远程文件系统挂载到本地。这基本就能满足一般用户的所有需求了。我之前也写过一篇博客来介绍 SSH基本用法，有需要的可以看看。
 
 至于后续的升级和维护嘛，这就是一个更大的坑了。我只能希望 Cuda 在推出新版本的同时，不要大幅度提高所需的显卡驱动版本，因为一旦这样的事情发生，就必须更新显卡驱动，而更新显卡驱动则需要更新宿主机上的驱动以及所有 LXC 容器的驱动。
@@ -146,6 +158,6 @@ host$ sudo vim /root/lxc-public-images/template/config
 
 
 
-Reference
-Setting up CUDA in Linux containers - SQream
-首发于博客：为实验室建立公用GPU服务器
+# Reference
+[Setting up CUDA in Linux containers - SQream](http://sqream.com/setting-cuda-linux-containers-2/)
+[首发于博客：为实验室建立公用GPU服务器](https://abcdabcd987.com/setup-shared-gpu-server-for-labs/)
