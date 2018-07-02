@@ -82,7 +82,7 @@ LXC 容器的 IP 是只有宿主机能访问得到的内网 IP，用户要怎么
 
 在后面的用户 Shell 脚本中需要用到 sudo，我们不希望让用户再次输入密码，所以我们在 sudoer 里面设置成不需要使用密码。
 
-```
+```bash
 host$ sudo vim /etc/rc.local     # for the /dev/nvidia-uvm script
 host$ sudo vim /etc/fstab
 172.16.2.30:/mnt/NAS/Share /NAS/Share nfs rw 0 0
@@ -109,7 +109,7 @@ host$ sudo visudo
 
 配置好了模板容器之后，我们关闭这个容器，并把它复制到 /root/lxc-public-images/template，并且稍微修改其中的配置文件，把 lxc.network.hwaddr, lxc.id_map, lxc.rootfs, lxc.utsname 等容器特有的配置删去。这些配置我们在后面的添加用户的脚本中再把它们生成出来。
 
-```
+```bash
 host$ sudo apt install lxc
 host$ sudo vim /etc/lxc/lxc-usernet
 host$ lxc-create -t download -n template -- --server mirrors.tuna.tsinghua.edu.cn/lxc-images
