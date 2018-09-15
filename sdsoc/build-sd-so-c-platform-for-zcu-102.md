@@ -9,7 +9,7 @@
 
 ### 新建一个Vivado工程命名为zcu102，新建一个bd命名为zcu102，按照下图搭建bd
 
-![ZCU102的Vivado工程](images/1.png)
+![ZCU102的Vivado工程](/uploads/images/1.png)
 
 clk_wiz_0的输出时钟频率设置为75，100，150，200，300，400，600M
 
@@ -18,7 +18,7 @@ clk_wiz_0的输出时钟频率设置为75，100，150，200，300，400，600M
 双击PS进入Re-customize IP对话框，点击I/O Configuration> High Speed，取消勾选PCIe，使能Display Port并将Lane设置为Dual Lower如下图所示，配置完成后保
 存Block Design
 
-![配置DP端口](images/2.png)
+![配置DP端口](/uploads/images/2.png)
 
 ### 输入SDSoC相关的配置属性
 在Tcl中输入
